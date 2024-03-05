@@ -116,7 +116,7 @@ console.log("Request Body:", req.body);
   const {accessToken,refreshToken} = await generateAccessTokenAndRefreshToken(user._id)
   
   const loggedInUser =  await User.findById(user._id)
-  .select("-password", "-refreshToken");
+  .select("-password -refreshToken");
 
   const options = {
     httpOnly: true,
