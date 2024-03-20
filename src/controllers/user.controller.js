@@ -4,6 +4,7 @@ import { User } from '../models/user.model.js'
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose"
 //generate acess & refresh tokens
 const generateAccessTokenAndRefreshToken = async (userId) => {
   try {
@@ -310,7 +311,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
   }
   const channel = await User.aggregate([
-
+    
     {
       $match: {
         username: username?.toLowerCase()
@@ -330,7 +331,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       }
     },
     {
-      $lookup:{
+      $lookup: {
         from: "Subscription",
         localField: "_id",
         foreignField: "subscriber",
@@ -342,33 +343,81 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         subscribersCount: {
           $size: "$subscribers"
         },
-        channelsSubscribedToCounts : {
+        channelsSubscribedToCounts: {
           $size: "$subscribedTo"
         },
-        isSubscribed : {
-           $cond: {
-             if: {$in: [req.user?._id, "$subscribers.subscriber"]},
-             then: true,
-             else: false
-           }
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false
+          }
         }
       }
     },
     {
       $project: {
         fullName: 1,
-        username:1,
-        subscribersCount:1,
-        channelsSubscribedToCounts:1,
-        avatar:1,
-        coverImage:1,
-        email:1
-        
+        username: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCounts: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1
+
       }
     }
 
-    
+
   ])
+  if(!channel?.length){
+    throw new ApiError(404, "channel does not exist")
+  }
+  return res.status(200)
+  .json(
+    new ApiResponse(200, channel[0],"User channel featched sucessfully")
+  )
+})
+
+const getWatchHistory = asyncHandler(async(req, res) => {
+    const user = await User.aggregate([
+     {
+       $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id)
+       }
+      },
+      {
+        $lookup:{
+          from:"videos",
+          localField:"watchHistory",
+          foreignField:"_id",
+          as:"watchHistory",
+          pipeline: [
+            {
+              $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as:"owner",
+                pipeline: [
+                  {
+                    $project :{
+                      fullName: 1,
+                      username:1,
+                      avatar:1
+                    }
+                  },
+                  {
+                    
+                  }
+                ]
+              }
+
+            }
+          ]
+        }
+      }
+    ])
 })
 
 
